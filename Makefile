@@ -1,5 +1,6 @@
 .PHONY: rel deps test show_test_results generate_snmp_header 
 
+REBAR ?= `which rebar || echo ./rebar`
 EJABBERD_DIR = apps/ejabberd
 EJD_INCLUDE = $(EJABBERD_DIR)/include
 EJD_PRIV = $(EJABBERD_DIR)/priv
@@ -47,6 +48,12 @@ ifeq ($(shell uname), Linux)
 else
 	cp -R `which erl`/../../lib/tools-* dev/mongooseim_$@/lib/
 endif
+
+compile_skip_deps:
+	$(REBAR) compile skip_deps=true
+
+dev_reload: compile_skip_deps
+	$(foreach lib, $(wildcard apps/*), $(shell rm -rf rel/mongooseim/lib/$(shell basename rel/mongooseim/lib/$(lib)-*)/* && cp -Rf $(lib)/* rel/mongooseim/lib/$(shell basename rel/mongooseim/lib/$(lib)-*)))
 
 deps_dev:
 	mkdir -p dev
