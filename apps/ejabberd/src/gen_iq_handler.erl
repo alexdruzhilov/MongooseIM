@@ -113,7 +113,7 @@ handle(Host, Module, Function, Opts, From, To, IQ) ->
 
 
 process_iq(_Host, Module, Function, From, To, IQ) ->
-    case catch Module:Function(From, To, IQ) of
+    case Module:Function(From, To, IQ) of
 	{'EXIT', Reason} ->
 	    ?ERROR_MSG("~p", [Reason]);
 	ResIQ ->

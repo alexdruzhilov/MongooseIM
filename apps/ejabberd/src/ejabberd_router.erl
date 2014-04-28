@@ -65,7 +65,7 @@ start_link() ->
 
 
 route(From, To, Packet) ->
-    case catch do_route(From, To, Packet) of
+    case do_route(From, To, Packet) of
         {'EXIT', Reason} ->
             ?ERROR_MSG("~p~nwhen processing: ~p",
                        [Reason, {From, To, Packet}]);

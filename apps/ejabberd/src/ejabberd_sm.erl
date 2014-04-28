@@ -81,7 +81,7 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 route(From, To, Packet) ->
-    case catch do_route(From, To, Packet) of
+    case do_route(From, To, Packet) of
         {'EXIT', Reason} ->
             ?ERROR_MSG("~p~nwhen processing: ~p",
                        [Reason, {From, To, Packet}]);

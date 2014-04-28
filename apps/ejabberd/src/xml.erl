@@ -36,6 +36,7 @@
 	 get_tag_attr/2, get_tag_attr_s/2,
 	 get_subtag/2,
 	 append_subtags/2,
+	 append_attrs/2,
 	 get_path_s/2,
 	 start/0,
 	 replace_tag_attr/3]).
@@ -238,6 +239,9 @@ get_subtag1([], _) ->
 
 append_subtags(XE = #xmlel{children = SubTags1}, SubTags2) ->
     XE#xmlel{children = SubTags1 ++ SubTags2}.
+
+append_attrs(XE = #xmlel{attrs = Attrs1}, Attrs2) ->
+	XE#xmlel{attrs = Attrs1 ++ Attrs2}.
 
 get_path_s(El, []) ->
     El;

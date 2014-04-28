@@ -1,41 +1,24 @@
 -module(mod_jingle2sip_sipapp_server).
 
 -behaviour(nksip_sipapp).
-%% -------------------------------------------------------------------
-%%
-%% Copyright (c) 2013 Carlos Gonzalez Florido.  All Rights Reserved.
-%%
-%% This file is provided to you under the Apache License,
-%% Version 2.0 (the "License"); you may not use this file
-%% except in compliance with the License.  You may obtain
-%% a copy of the License at
-%%
-%%   http://www.apache.org/licenses/LICENSE-2.0
-%%
-%% Unless required by applicable law or agreed to in writing,
-%% software distributed under the License is distributed on an
-%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-%% KIND, either express or implied.  See the License for the
-%% specific language governing permissions and limitations
-%% under the License.
-%%
-%% -------------------------------------------------------------------
 
-%% @doc SipApp Tutorial server callback module implementation.
-%%
-%% This modules implements a proxy server callback module for NkSIP Tutorial.
-%% It allows any request from any user in domain "nksip", having password "1234".
-%% Requests without user and domain "nksip" are processed internally (i.e. "sip:nksip").
-%% Request with user and domain "nksip" are found (as a registrar) and proxied.
-%% Other requests are proxied to the same origin Request-URI
+%% ----------------------------------------------------------------------
+%% Exports
 
--export([init/1, get_user_pass/3, authorize/4, route/6, invite/3, reinvite/3, cancel/2, 
-         ack/3, bye/3, options/3, register/3, info/3]).
+-export([init/1, route/6, cancel/2, ack/3, bye/3, options/3, register/3, info/3]).
 -export([ping_update/3, register_update/3, dialog_update/3, session_update/3]).
 -export([handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
--include_lib("nksip/include/nksip.hrl").
+%% ----------------------------------------------------------------------
+%% Imports
 
+-include("ejabberd.hrl").
+-include("jlib.hrl").
+
+%% VERSION defined both in ejabberd.hrl and nksip.hrl, so it's need to be fixed
+-undef(VERSION).
+
+-include_lib("nksip/include/nksip.hrl").
 
 %% ===================================================================
 %% Callbacks
@@ -54,68 +37,6 @@ init([Id]) ->
 %% @doc Called when the SipApp is stopped.
 terminate(_Reason, _State) ->
     ok.
-
-
-%% @doc Called to check a user password for a realm.
-%% When a request is received containing a `Authorization' or `Proxy-Authorization' 
-%% header, this function is called by NkSIP including the header's `User' and `Realm', 
-%% to check if the authorization data in the header corresponds to the user's password.
-%%
-%% You should normally reply with the user's password (if you have it for this user 
-%% and realm). NkSIP will use the password and the digest information in the header 
-%% to check if it is valid, offering this information in the call to 
-%% {@link authorize/4}. 
-%%
-%% You can also reply `true' if you want to accept any request from this user 
-%% without checking any password, or `false' if you don't have a password for this user 
-%% or want her blocked.
-%%
-%% If you don't want to store <i>clear-text</i> passwords of your users, 
-%% you can use {@link nksip_auth:make_ha1/3} to generate a <i>hash</i> of the password 
-%% for an user and a realm, and store only this hash instead of the real password. 
-%% Later on you can reply here with the hash instead of the real password.
-%%
-%% If you don't define this function, NkSIP will reply with password `<<>>' 
-%% if user is `anonymous', and `false' for any other user.  
-%%
-get_user_pass(<<"anonymous">>, _, State) ->
-    {reply, <<>>, State};
-get_user_pass(_User, _Realm, State) ->
-    {reply, false, State}.
-
-
-
-%% @doc Called for every incoming request to be authorized or not.
-%%
-%% If `ok' is replied the request is authorized and the 
-%% request processing continues. If `authenticate' is replied, the request will be 
-%% rejected (statelessly) with a 401 <i>Unauthorized</i>. 
-%% The other party will usually send the request again, this time with an 
-%% `Authorization' header. If you reply `proxy_authenticate', it is rejected 
-%% with a 407 <i>Proxy Authentication Rejected</i> response and the other party 
-%% will include a `Proxy-Authorization' header.
-%%
-%% You can use the tags included in `AuthList' in order to decide to authenticate
-%% or not the request.  AuthList includes the following tags:
-%% <ul>
-%%    <li>`dialog': the request is in-dialog and coming from the same ip and port
-%%        than the last request for an existing dialog.</li>
-%%    <li>`register': the request comes from the same ip, port and transport of a 
-%%        currently valid registration (and the method is not <i>REGISTER</i>).</li>
-%%    <li>`{{digest, Realm}, true}': there is at least one valid user authenticated
-%%        (has a correct password) with this Realm.</li>
-%%    <li>`{{digest, Realm}, false}': there is at least one user offering an 
-%%        authentication header for this Realm, but all of them 
-%%        have failed the authentication (no password was valid). </li>
-%% </ul>
-%%
-%% You will usually want to combine these strategies. Typically you will first 
-%% check using SIP digest authentication, and, in case of faillure, you can use 
-%% previous registration and/or dialog authentication. 
-%% If you don't define this function all requests will be authenticated.
-%%
-authorize(_AuthList, _ReqId, _From, State) ->
-    {reply, ok, State}.
 
 
 %% @doc This function is called by NkSIP for every new request, to check if it must be 
@@ -190,58 +111,9 @@ authorize(_AuthList, _ReqId, _From, State) ->
 %%
 %% If route/3 is not defined the default reply would be `process'.
 %%
--type route_reply() ::
-    proxy | {proxy, ruri | nksip:uri_set()} | 
-    {proxy, ruri | nksip:uri_set(), nksip_lib:proplist()} | 
-    process | {process, nksip_lib:proplist()} |
-    {response, nksip:sipreply()} | 
-    {response, nksip:sipreply(), nksip_lib:proplist()}.
-
 route(_Scheme, _User, _Domain, _ReqId, _From, State) ->
     io:format("!!!!!!!! Route ~p~n ~p~n ~p~n ~p~n ~p~n ~p~n", [_Scheme, _User, _Domain, _ReqId, _From, State]),
     {reply, process, State}.
-
-
-%% @doc This function is called by NkSIP to process a new INVITE request as an endpoint.
-%% Before replying a final response, you will usually call 
-%% {@link nksip_request:reply/3} to send a provisional response like 
-%% `ringing' (which would send a 180 <i>Ringing</i> reply).
-%%
-%% If a quick response (like `busy') is not going to be sent immediately 
-%% (which is typical for INVITE requests, as the user would normally need to accept 
-%% the call) you must return `{noreply, NewState}' and spawn a new process, 
-%% calling {@link nksip:reply/2} from the new process, in order to avoid 
-%% blocking the SipApp process.
-%%
-%% You can access the body of the request by calling {@link nksip_request:body/2}. 
-%% INVITE requests will usually have a SDP body. If this is the case, and the 
-%% `Content-Type' header contains `application/sdp', NkSIP will decode the SDP and 
-%% `nksip_request:body/2' will return a {@link nksip_sdp:sdp()} object you can manage 
-%% with the functions in {@link nksip_sdp}. 
-%% If it is not recognized it would return a binary, or `<<>>' if it is missing.
-%%
-%% You must then answer the request. The possible responses are defined in 
-%% {@link nksip_reply}.
-%% If a successful (2xx) response is sent, you should include a new generated SDP body
-%% in the response. A new dialog will then start. 
-%% The remote party should then send an ACK request immediately.
-%% If none is received, NkSIP will automatically stop the dialog.
-%%
-invite(_ReqId, _From, State) ->
-    io:format("!!!!!!!! Invite ~p~n ~p~n ~p~n", [_ReqId, _From, State]),
-    {reply, decline, State}.
-
-
-%% @doc This function is called when a new in-dialog INVITE request is received.
-%% The guidelines in {@link invite/4} are valid, but you shouldn't send provisional
-%% responses, but a final response inmediatly.
-%% 
-%% If the dialog's target or the SDP session parameters are updated by the request or
-%% its response, {@link dialog_update/3} and/or {@link session_update/3} would be
-%% called.
-%%
-reinvite(_ReqId, _From, State) ->
-    {reply, decline, State}.
 
 
 %% @doc Called when a pending INVITE request is cancelled.
@@ -267,7 +139,7 @@ cancel(_ReqId, State) ->
 %% (you can also get it from the {@link session_update/3} callback).
 %%
 ack(_ReqId, _From, State) ->
-    io:format("!!!!!!!! Ack ~p~n ~p~n ~p~n", [_ReqId, _From, State]),
+    io:format("!!!!!!!! Ack ~n~p~n ~p~n ~p~n", [_ReqId, _From, State]),
     {reply, ok, State}.
 
 
@@ -278,7 +150,46 @@ ack(_ReqId, _From, State) ->
 %% You won't usually need to implement this function, but in case you do, you
 %% should reply `ok' to send a 200 response back.
 %%
-bye(_ReqId, _From, State) ->
+bye(DialogId, _From, #state{id = Id} = State) ->
+    io:format("!!!!!!!! Bye ~n~p~n ~p~n ~p~n", [DialogId, _From, State]),
+    CallId = nksip_dialog:field(Id, DialogId, call_id),
+    LocalUri = nksip_dialog:field(Id, DialogId, local_uri),
+    RemoteUri = nksip_dialog:field(Id, DialogId, remote_uri),
+    From = mod_jingle2sip_utils:uri_to_jid(RemoteUri),
+    To = mod_jingle2sip_utils:uri_to_jid(LocalUri),
+    Iq = #iq{
+        type = set,
+        sub_el = [
+            #xmlel{
+                name = <<"jingle">>,
+                attrs = [
+                    {<<"xmlns">>, ?NS_JINGLE},
+                    {<<"action">>, <<"session-terminate">>},
+                    {<<"sid">>, CallId}
+                ],
+                children = [
+                    #xmlel{
+                        name = <<"reason">>,
+                        children = [
+                            #xmlel {
+                                name = <<"success">>,
+                                children = [
+                                    #xmlel{
+                                        name = <<"text">>,
+                                        children = [#xmlcdata{content = <<"Hangup">>}]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    ejabberd_local:route_iq(From, To, Iq, 
+        fun(Response) ->
+            io:format("!!!!!!!! Bye response ~n~p~n", [Response])       
+        end),
     {reply, ok, State}.
 
 
@@ -351,8 +262,37 @@ register(_ReqId, _From, State) ->
 %% NkSIP will call this function every time a dialog is created, its target is updated
 %% or it is destroyed.
 %%
-dialog_update(_DialogId, _Status, State) ->
-    io:format("!!!!!!!! Dialog update ~p~n ~p~n ~p~n", [_DialogId, _Status, State]),
+dialog_update(DialogId, Status, #state{id = Id} = State) ->
+    io:format("!!!!!!!! Dialog update ~p~n ~p~n ~p~n", [DialogId, Status, State]),
+    case Status of
+        proceeding_uac ->
+            CallId = nksip_dialog:field(Id, DialogId, call_id),
+            LocalUri = nksip_dialog:field(Id, DialogId, local_uri),
+            RemoteUri = nksip_dialog:field(Id, DialogId, remote_uri),
+            From = mod_jingle2sip_utils:uri_to_jid(RemoteUri),
+            To = mod_jingle2sip_utils:uri_to_jid(LocalUri),
+            ejabberd_router:route(From, To, #xmlel{
+                name = <<"jingle">>,
+                attrs = [
+                    {<<"xmlns">>, ?NS_JINGLE},
+                    {<<"action">>, <<"session-info">>},
+                    {<<"sid">>, CallId}
+                ],
+                children = [
+                    #xmlel{
+                        name = <<"ringing">>,
+                        attrs = [
+                            {<<"xmlns">>, ?NS_JINGLE_RTP}
+                        ]
+                    }
+                ]
+            });
+        {stop, StopReason} ->
+            LocalUri = nksip_dialog:field(Id, DialogId, local_uri),
+            StopReason = nksip_dialog:field(Id, DialogId, stop_reason),
+            io:format("!!!!!!!! Stop ~n~p~n ~p~n", [StopReason, LocalUri]);
+        _ -> ok
+    end,
     {noreply, State}.
 
 
@@ -363,8 +303,32 @@ dialog_update(_DialogId, _Status, State) ->
 %%
 %% This function will be also called after each new successful SDP negotiation.
 %%
-session_update(_DialogId, _Status, State) ->
-    io:format("!!!!!!!! Session update ~p~n ~p~n ~p~n", [_DialogId, _Status, State]),
+session_update(DialogId, Status, #state{id = Id} = State) ->
+    io:format("!!!!!!!! Session update ~p~n ~p~n ~p~n", [DialogId, Status, State]),
+    case Status of
+        {start, _, _} -> 
+            CallId = nksip_dialog:field(Id, DialogId, call_id),
+            LocalUri = nksip_dialog:field(Id, DialogId, local_uri),
+            RemoteUri = nksip_dialog:field(Id, DialogId, remote_uri),
+            From = mod_jingle2sip_utils:uri_to_jid(RemoteUri),
+            To = mod_jingle2sip_utils:uri_to_jid(LocalUri),
+            RemoteSdp = nksip_dialog:field(Id, DialogId, remote_sdp),
+            Jingle = jingle_sdp:from_sdp(RemoteSdp, <<"responder">>),
+            SessionAccept = #iq{
+                type = set,
+                sub_el = [xml:append_attrs(Jingle, [
+                    {<<"action">>, <<"session-accept">>},
+                    {<<"initiator">>, jlib:jid_to_binary(To)},
+                    {<<"responder">>, jlib:jid_to_binary(From)},
+                    {<<"sid">>, CallId}
+                ])]
+            },
+            ejabberd_local:route_iq(From, To, SessionAccept, 
+                fun(Response) ->
+                    io:format("!!!!!!!! Session accept response ~n~p~n", [Response])       
+                end);
+        _ -> ok
+    end,
     {noreply, State}.
 
 
@@ -395,12 +359,3 @@ handle_cast(_Msg, State) ->
 %% @doc Called when the SipApp process receives an unknown message.
 handle_info(_Msg, State) ->
     {noreply, State}.
-
-
-
-
-
-
-
-
-

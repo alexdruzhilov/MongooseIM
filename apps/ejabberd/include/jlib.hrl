@@ -57,6 +57,7 @@
 -define(NS_MUC_REQUEST,  <<"http://jabber.org/protocol/muc#request">>).
 -define(NS_PING,        <<"urn:xmpp:ping">>).
 -define(NS_JINGLE,      <<"urn:xmpp:jingle:1">>).
+-define(NS_JINGLE_RTP,  <<"urn:xmpp:jingle:apps:rtp:1:info">>).
 -define(NS_PUBSUB,      <<"http://jabber.org/protocol/pubsub">>).
 -define(NS_PUBSUB_EVENT,<<"http://jabber.org/protocol/pubsub#event">>).
 -define(NS_PUBSUB_OWNER,<<"http://jabber.org/protocol/pubsub#owner">>).
